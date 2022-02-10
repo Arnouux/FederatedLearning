@@ -5,6 +5,7 @@ import (
 	"federated/node"
 	"federated/transport"
 	"testing"
+	"time"
 
 	"github.com/ldsec/lattigo/v2/bfv"
 	"github.com/stretchr/testify/require"
@@ -69,15 +70,37 @@ func Test_StartNode(t *testing.T) {
 	go node1.Start()
 
 	node2 := node.Create()
-
 	pkt := transport.Packet{
 		Source:      node2.Socket.GetAdress(),
 		Destination: node1.Socket.GetAdress(),
 		Message:     "Hello",
-		//Payload:     json.RawMessage(`{"Message":"hello"}`),
 	}
 
 	node2.Socket.Send(node1.Socket.GetAdress(), pkt)
 
-	require.Equal(t, 1, 2)
+	time.Sleep(time.Second * 1)
+
+	require.Equal(t, pkt, node1.Packets[0])
+}
+
+func Test_SendHE(t *testing.T) {
+	node1 := node.Create()
+	go node1.Start()
+
+	node2 := node.Create()
+
+	encrypted, _ := node1.Client.Encrypt(3, 4)
+	pkt := transport.Packet{
+		Source:      node2.Socket.GetAdress(),
+		Destination: node1.Socket.GetAdress(),
+		Message:     encrypted,
+	}
+
+	// TODO fragment packet because too big
+	// TODO or send via TCP
+	err := node2.Socket.Send(node1.Socket.GetAdress(), pkt)
+	require.NoError(t, err)
+
+	time.Sleep(time.Second * 1)
+	require.Equal(t, pkt, node1.Packets[0])
 }

@@ -17,7 +17,7 @@ type Client struct {
 	bfv.Encryptor
 	bfv.Decryptor
 
-	params bfv.Parameters
+	Params bfv.Parameters
 }
 
 type Server struct {
@@ -33,7 +33,7 @@ func NewClient() Client {
 
 	p := bfv.DefaultParams[1]
 	params, _ := bfv.NewParametersFromLiteral(p)
-	client.params = params
+	client.Params = params
 	//keyGenerator := bfv.NewKeyGenerator(params)
 	client.Encoder = bfv.NewEncoder(params)
 
@@ -57,9 +57,7 @@ func NewServer() Server {
 }
 
 func (client *Client) Encrypt(values ...int64) (string, error) {
-
-	// Encrypt
-	text := bfv.NewPlaintext(client.params)
+	text := bfv.NewPlaintext(client.Params)
 
 	coeffs := make([]int64, 0)
 	for _, v := range values {
@@ -73,7 +71,7 @@ func (client *Client) Encrypt(values ...int64) (string, error) {
 }
 
 func (client *Client) Decrypt(input string) ([]int64, error) {
-	cipher := bfv.NewCiphertext(client.params, 1)
+	cipher := bfv.NewCiphertext(client.Params, 1)
 	UnmarshalFromBase64(cipher, input)
 
 	text := client.DecryptNew(cipher)
