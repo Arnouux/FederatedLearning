@@ -88,12 +88,14 @@ func Test_SendHE(t *testing.T) {
 	go node1.Start()
 
 	node2 := node.Create()
+	go node2.Start()
 
 	encrypted, _ := node1.Client.Encrypt(3, 4)
 	pkt := transport.Packet{
 		Source:      node2.Socket.GetAdress(),
 		Destination: node1.Socket.GetAdress(),
 		Message:     encrypted,
+		Type:        transport.EncryptedChunk,
 	}
 
 	// TODO fragment packet because too big
@@ -102,5 +104,10 @@ func Test_SendHE(t *testing.T) {
 	require.NoError(t, err)
 
 	time.Sleep(time.Second * 1)
-	require.Equal(t, pkt, node1.Packets[0])
+	require.Equal(t, 1, len(node1.Packets))
+	require.Equal(t, len(encrypted), len(node1.Packets[0].Message))
+	require.Equal(t, pkt.Destination, node1.Packets[0].Destination)
+	require.Equal(t, pkt.Message, node1.Packets[0].Message)
+	require.Equal(t, pkt.Source, node1.Packets[0].Source)
+	require.Equal(t, pkt.Type, node1.Packets[0].Type)
 }

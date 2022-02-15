@@ -48,17 +48,16 @@ func (n *Node) Start() error {
 		case err := <-errChan:
 			return err
 		case pkt := <-pktChan:
-			fmt.Println("Pkt received: " + pkt.String())
 
 			n.OnReceive(pkt)
 
-			return nil
 		}
 	}
 }
 
 // Handler of packet
 func (n *Node) OnReceive(pkt transport.Packet) error {
+	//fmt.Println("Pkt received: " + pkt.String())
 	n.Packets = append(n.Packets, pkt)
 
 	// If 2 packets -> Calculations + Send back
