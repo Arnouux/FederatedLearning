@@ -53,6 +53,7 @@ func NewServer() Server {
 	}
 	return Server{
 		Evaluator: bfv.NewEvaluator(params, evaluationKey),
+		Responses: make([]*bfv.Ciphertext, 0),
 	}
 }
 

@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"net"
+	"strconv"
 )
 
 type Socket struct {
@@ -18,7 +19,7 @@ func CreateSocket() (Socket, error) {
 	if err != nil {
 		return Socket{}, err
 	}
-	return Socket{connection: pktConn, chanAck: make(chan bool)}, nil
+	return Socket{connection: pktConn, chanAck: make(chan bool, 1)}, nil
 }
 
 func (s *Socket) Send(dest string, pkt Packet) error {
@@ -27,8 +28,6 @@ func (s *Socket) Send(dest string, pkt Packet) error {
 		return err
 	}
 
-	// TODO separate different packet types
-
 	// Decompose packet
 	sendingPkt := Packet{
 		Source:      pkt.Source,
@@ -36,33 +35,46 @@ func (s *Socket) Send(dest string, pkt Packet) error {
 		Type:        pkt.Type,
 	}
 
-	i := 50000
-	for i < len(pkt.Message) {
-		sendingPkt.Message = pkt.Message[i-50000 : i]
+	// Prepare pkt according to type
+	switch pkt.Type {
+	case Ack:
+		sendingPkt.Message = pkt.Message
+	case EncryptedChunk, Result:
+		i := 50000
+		for i < len(pkt.Message) {
+			sendingPkt.Message = pkt.Message[i-50000 : i]
 
-		// Marshal and send current packet
-		bytes, err := json.Marshal(sendingPkt)
-		if err != nil {
-			return err
-		}
-		n, err := s.connection.WriteTo(bytes, addr)
-		if err != nil {
-			return err
-		}
-		fmt.Println("sent")
-		if n < len(bytes) {
-			return errors.New("[transport.Socket.Send]: not all bytes were written")
-		}
+			// Marshal and send current packet
+			bytes, err := json.Marshal(sendingPkt)
+			if err != nil {
+				fmt.Println(err)
+				return err
+			}
+			n, err := s.connection.WriteTo(bytes, addr)
+			if err != nil {
+				fmt.Println(err)
+				return err
+			}
+			if n < len(bytes) {
+				fmt.Println("[transport.Socket.Send]: not all bytes were written")
+				return errors.New("[transport.Socket.Send]: not all bytes were written")
+			}
 
-		i += 50000
+			i += 50000
 
-		// waits for ack before sending next packet
-		fmt.Println("waiting for ack")
-		<-s.chanAck
-		fmt.Println("ack received")
+			// waits for ack before sending next packet
+			//time.Sleep(time.Millisecond * 10)
+			fmt.Println("waiting for ack")
+			<-s.chanAck
+			// fmt.Println(b)
+		}
+		// Marshal and send last packet
+		sendingPkt.Message = pkt.Message[i-50000:]
+
+	default:
+		sendingPkt.Message = pkt.Message
 	}
-	// Marshal and send last packet
-	sendingPkt.Message = pkt.Message[i-50000:]
+
 	bytes, err := json.Marshal(sendingPkt)
 	if err != nil {
 		return err
@@ -74,20 +86,6 @@ func (s *Socket) Send(dest string, pkt Packet) error {
 	if n < len(bytes) {
 		return errors.New("[transport.Socket.Send]: not all bytes were written")
 	}
-
-	// bytes, err := json.Marshal(pkt)
-	// if err != nil {
-	// 	return err
-	// }
-
-	// n, err := s.connection.WriteTo(bytes, addr)
-	// if err != nil {
-	// 	return err
-	// }
-	// if n < len(bytes) {
-	// 	return errors.New("[transport.Socket.Send]: not all bytes were written")
-	// }
-
 	return nil
 }
 
@@ -108,21 +106,25 @@ func (s *Socket) Recv() (Packet, error) {
 	}
 	messageFull += pkt.Message
 
-	fmt.Println("switch type", pkt.Type)
+	fmt.Println("received", pkt.Type, n)
 	switch pkt.Type {
 	case Ack:
+		fmt.Println("ack received")
 		s.chanAck <- true
-	case EncryptedChunk:
+	case EncryptedChunk, Result:
 		count := 0
 		// send ack
 		pktAck := Packet{
 			Source:      s.address,
 			Destination: pkt.Source,
-			Message:     string(count),
+			Message:     strconv.Itoa(count),
 			Type:        Ack,
 		}
 		count += 1
 		s.Send(pkt.Source, pktAck)
+		fmt.Println("ack sent to", pktAck.Destination)
+
+		currentSource := pkt.Source
 
 		// Waiting for other packets
 		for {
@@ -141,25 +143,30 @@ func (s *Socket) Recv() (Packet, error) {
 				return Packet{}, err
 			}
 			messageFull += pkt.Message
-			fmt.Println("recv")
+
+			// Check pkt is from the same message
+			if pkt.Source != currentSource || pkt.Type != EncryptedChunk {
+				// TODO : start new recv process or ignore ?
+				// TODO : add rng ID to make sure it is from unique message
+			}
 
 			// send ack
 			pktAck := Packet{
 				Source:      s.address,
 				Destination: pkt.Source,
-				Message:     string(count),
+				Message:     strconv.Itoa(count),
 				Type:        Ack,
 			}
 			count += 1
 			s.Send(pkt.Source, pktAck)
-			fmt.Println("ack sent to source")
 
-			// TODO use terminal token
+			// TODO use terminal token or 'end' field in packet
 			if len(pkt.Message) != 50000 {
-				// TODO make sure every packets are from same process (dest/source)
 				break
 			}
 		}
+	default:
+
 	}
 
 	pktFinal := Packet{

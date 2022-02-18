@@ -10,6 +10,7 @@ type Packet struct {
 const (
 	EncryptedChunk = "encryptedChunk"
 	Ack            = "acknowlegdement"
+	Result         = "result"
 )
 
 func (p *Packet) String() string {
