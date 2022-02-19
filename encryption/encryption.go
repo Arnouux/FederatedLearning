@@ -21,7 +21,7 @@ type Client struct {
 }
 
 type Server struct {
-	Participants map[string]*bfv.Ciphertext
+	Participants []string
 	bfv.Evaluator
 	Responses []*bfv.Ciphertext
 	Result    *bfv.Ciphertext
@@ -52,8 +52,9 @@ func NewServer() Server {
 		Rlk: bfv.NewRelinearizationKey(params, 2),
 	}
 	return Server{
-		Evaluator: bfv.NewEvaluator(params, evaluationKey),
-		Responses: make([]*bfv.Ciphertext, 0),
+		Evaluator:    bfv.NewEvaluator(params, evaluationKey),
+		Responses:    make([]*bfv.Ciphertext, 0),
+		Participants: make([]string, 0),
 	}
 }
 
@@ -118,4 +119,10 @@ func (s *Server) PublicDataJSON() string {
 		"result": MarshalToBase64String(s.Result),
 	})
 	return string(b)
+}
+
+func (s *Server) AddParticipants(ps ...string) {
+	for _, p := range ps {
+		s.Participants = append(s.Participants, p)
+	}
 }

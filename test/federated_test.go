@@ -79,7 +79,7 @@ func Test_StartNode(t *testing.T) {
 
 	node2.Socket.Send(node1.Socket.GetAdress(), pkt)
 
-	time.Sleep(time.Second * 1)
+	time.Sleep(time.Millisecond * 200)
 
 	require.Equal(t, pkt, node1.Packets[0])
 }
@@ -102,7 +102,7 @@ func Test_SendHE(t *testing.T) {
 	err := node2.Socket.Send(node1.Socket.GetAdress(), pkt)
 	require.NoError(t, err)
 
-	time.Sleep(time.Second * 1)
+	time.Sleep(time.Millisecond * 200)
 	require.Equal(t, 1, len(node1.Packets))
 	require.Equal(t, len(encrypted), len(node1.Packets[0].Message))
 	require.Equal(t, pkt.Destination, node1.Packets[0].Destination)
@@ -113,12 +113,13 @@ func Test_SendHE(t *testing.T) {
 
 func Test_ServerCalculations(t *testing.T) {
 	node1 := node.Create()
-	go node1.Start()
+	node1.Start()
 	node2 := node.Create()
-	go node2.Start()
+	node2.Start()
 
 	server := node.Create()
-	go server.Start()
+	server.Server.AddParticipants(node1.Socket.GetAdress(), node2.Socket.GetAdress())
+	server.Start()
 	serverEncryption := encryption.NewServer()
 
 	// Node 1 encrypts and sends
@@ -143,7 +144,7 @@ func Test_ServerCalculations(t *testing.T) {
 	err = node2.Socket.Send(server.Socket.GetAdress(), pkt)
 	require.NoError(t, err)
 
-	time.Sleep(time.Second * 1)
+	time.Sleep(time.Millisecond * 200)
 	require.Equal(t, 2, len(server.Packets))
 
 	// Server reads encryptions
@@ -172,6 +173,8 @@ func Test_ServerSendResults(t *testing.T) {
 	node2 := node.Create()
 
 	server := node.Create()
+	server.Server.AddParticipants(node1.Socket.GetAdress(), node2.Socket.GetAdress())
+
 	err := server.Start()
 	require.NoError(t, err)
 
@@ -202,7 +205,7 @@ func Test_ServerSendResults(t *testing.T) {
 	err = node2.Socket.Send(server.Socket.GetAdress(), pkt2)
 	require.NoError(t, err)
 
-	time.Sleep(time.Second * 1)
+	time.Sleep(time.Millisecond * 200)
 	require.Equal(t, 2, len(server.Packets))
 
 	// Nodes 1 & 2 should receive Result packet
@@ -210,4 +213,31 @@ func Test_ServerSendResults(t *testing.T) {
 	require.Equal(t, transport.Result, node1.Packets[0].Type)
 	require.Equal(t, 1, len(node2.Packets))
 	require.Equal(t, transport.Result, node2.Packets[0].Type)
+
+	// Node 1 receives
+	coeffs, err := node1.Decrypt(node1.Packets[0].Message)
+	require.NoError(t, err)
+
+	// Node 2 receives
+	coeffs2, err2 := node2.Decrypt(node2.Packets[0].Message)
+	require.NoError(t, err2)
+
+	require.Equal(t, coeffs[0], coeffs2[0])
+	require.Equal(t, coeffs[1], coeffs2[1])
+}
+
+func Test_ServerWaitsForNodes(t *testing.T) {
+	server := node.Create()
+	server.Print()
+
+	// Server starts and wait for nodes to join
+	server.Start()
+
+	node1 := node.Create()
+	node1.Join(server.Socket.GetAdress())
+
+	time.Sleep(time.Millisecond * 200)
+
+	require.Equal(t, 1, len(server.Packets))
+
 }

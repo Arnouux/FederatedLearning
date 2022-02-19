@@ -90,7 +90,7 @@ func (s *Socket) Send(dest string, pkt Packet) error {
 }
 
 func (s *Socket) Recv() (Packet, error) {
-	messageFull := ""
+	var messageFull string
 
 	buffer := make([]byte, 65000)
 	n, _, err := s.connection.ReadFrom(buffer)
@@ -106,7 +106,7 @@ func (s *Socket) Recv() (Packet, error) {
 	}
 	messageFull += pkt.Message
 
-	fmt.Println("received", pkt.Type, n)
+	fmt.Println("received", pkt.Type, "from", pkt.Source)
 	switch pkt.Type {
 	case Ack:
 		fmt.Println("ack received")
@@ -115,7 +115,7 @@ func (s *Socket) Recv() (Packet, error) {
 		count := 0
 		// send ack
 		pktAck := Packet{
-			Source:      s.address,
+			Source:      s.GetAdress(),
 			Destination: pkt.Source,
 			Message:     strconv.Itoa(count),
 			Type:        Ack,
@@ -152,7 +152,7 @@ func (s *Socket) Recv() (Packet, error) {
 
 			// send ack
 			pktAck := Packet{
-				Source:      s.address,
+				Source:      s.GetAdress(),
 				Destination: pkt.Source,
 				Message:     strconv.Itoa(count),
 				Type:        Ack,

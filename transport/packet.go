@@ -5,12 +5,14 @@ type Packet struct {
 	Destination string
 	Message     string
 	Type        string
+	ID          string
 }
 
 const (
 	EncryptedChunk = "encryptedChunk"
 	Ack            = "acknowlegdement"
 	Result         = "result"
+	Join           = "join"
 )
 
 func (p *Packet) String() string {
