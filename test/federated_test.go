@@ -2,6 +2,7 @@ package test
 
 import (
 	"federated/encryption"
+	"federated/neural"
 	"federated/node"
 	"federated/transport"
 	"testing"
@@ -239,5 +240,49 @@ func Test_ServerWaitsForNodes(t *testing.T) {
 	time.Sleep(time.Millisecond * 200)
 
 	require.Equal(t, 1, len(server.Packets))
+	require.Equal(t, 1, len(server.Server.Participants))
 
+	// TODO more about Join
+}
+
+func Test_NeuralNetwork(t *testing.T) {
+	// input = 3
+	// output = 2
+	// nb of hidden layers = 3
+	// nb of neurons = 4
+	// lr = 0.01
+	nn := neural.CreateNetwork(3, 2, 3, 4, 0.01, neural.Sigmoid)
+	nn.InitiateWeights()
+	nn.Print()
+
+	require.Equal(t, 1, 2)
+}
+
+// Prepare number of layers, number of neurons,
+// learning rate, number of global iterations,
+// activation functions, local batch size.
+// Root (server) encrypts initial weigths.
+func Test_ServerPreparesParameters(t *testing.T) {
+	server := node.Create()
+	server.Start()
+
+	node1, err1 := node.CreateAndStart()
+	node1.Join(server.Socket.GetAdress())
+	node2, err2 := node.CreateAndStart()
+	node2.Join(server.Socket.GetAdress())
+	require.NoError(t, err1, err2)
+
+	// TODO : See Protocol 1 Collective Training
+
+}
+
+func Test_LocalGradientDescent(t *testing.T) {
+	// TODO : See Protocol 2 LGD
+}
+
+func Test_CombineGradients(t *testing.T) {
+	// sum all received gradients
+
+	// Update model weights by using
+	// the averaged aggragated gradients
 }
