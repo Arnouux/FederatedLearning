@@ -33,6 +33,12 @@ func Create() Node {
 	return n
 }
 
+func CreateAndStart() (Node, error) {
+	n := Create()
+	err := n.Start()
+	return n, err
+}
+
 func (n *Node) Print() {
 	fmt.Println("Node address : " + n.Socket.GetAdress())
 }
@@ -81,6 +87,10 @@ func (n *Node) Join(server string) error {
 // Handler of packet
 func (n *Node) OnReceive(pkt transport.Packet) error {
 	fmt.Println("Pkt received: ", pkt.Type, "from", pkt.Source)
+	// switch pkt.Type {
+	// case transport.EncryptedChunk:
+	// 	OnReceiveEncryptedChunk(pkt)
+	// }
 
 	// If 2 packets -> Calculations + Send back
 	if len(n.GetPacketsByType(transport.EncryptedChunk)) >= len(n.Server.Participants) && len(n.Server.Participants) > 0 {
@@ -112,8 +122,11 @@ func (n *Node) OnReceive(pkt transport.Packet) error {
 			go n.Socket.Send(p.Source, pktResult)
 
 		}
-
 		// Empty used packets ?
+	}
+
+	if pkt.Type == transport.Join {
+		n.Server.Participants = append(n.Server.Participants, pkt.Source)
 	}
 
 	return nil
