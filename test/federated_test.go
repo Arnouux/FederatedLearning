@@ -246,16 +246,35 @@ func Test_ServerWaitsForNodes(t *testing.T) {
 }
 
 func Test_NeuralNetwork(t *testing.T) {
-	// input = 3
-	// output = 2
-	// nb of hidden layers = 3
-	// nb of neurons = 4
+	// input = 4
+	// output = 1
+	// nb of hidden layers = 1
+	// nb of neurons = 5
 	// lr = 0.01
-	nn := neural.CreateNetwork(3, 2, 3, 4, 0.01, neural.Sigmoid)
+	nn := neural.CreateNetwork(4, 1, 1, 5, 0.01)
 	nn.InitiateWeights()
-	nn.Print()
 
-	require.Equal(t, 1, 2)
+	// Change weights to known value
+	nn.Weights[0][0] = []float64{1, 1, 1, 1, 1}
+	nn.Weights[0][1] = []float64{1, 1, 1, 1, 1}
+	nn.Weights[0][2] = []float64{1, 1, 1, 1, 1}
+	nn.Weights[0][3] = []float64{1, 1, 1, 1, 1}
+	nn.Weights[2][0] = []float64{1, 1, 1, 1, 1}
+
+	nn.Print()
+	// input -> hidden1 / hidden1 -> output
+	require.Equal(t, 2, len(nn.Weights))
+
+	output, err := nn.Forward([]float64{0.01, 0.02, 0.03, 0.04})
+	require.NoError(t, err)
+	require.Equal(t, 0.93244675427215695, output[2][0])
+
+	backpropagation, err := nn.Backpropagation([]float64{0.01, 0.02, 0.03, 0.04}, 1)
+	require.NoError(t, err)
+	require.Equal(t, backpropagation, [][]float64{
+		[]float64{-0.002233873461468998, 0, 0, 0},
+		[]float64{-1.0611363867362362e-05, -2.1222727734724723e-05, -3.183409160208709e-05, -4.2445455469449446e-05},
+	})
 }
 
 // Prepare number of layers, number of neurons,
