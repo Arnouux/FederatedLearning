@@ -17,3 +17,4 @@ In any case, you will need to instanciate nodes with `node.CreateAndStart()` and
 - [ ] gradients calculations
 - [ ] aggregation
 - [ ] byzantine environnement resistance
+- [ ] change BFV to CKKS for float operations

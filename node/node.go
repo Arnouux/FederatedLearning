@@ -2,19 +2,26 @@ package node
 
 import (
 	"federated/encryption"
+	"federated/neural"
 	"federated/transport"
 	"fmt"
 
-	"github.com/ldsec/lattigo/v2/bfv"
+	"github.com/ldsec/lattigo/v2/ckks"
 )
 
 type Node struct {
+	// transport
 	Socket  transport.Socket
 	Packets []transport.Packet
 
+	// encryption
 	encryption.Client
 	encryption.Server
 
+	// neural
+	neural.NeuralNetwork
+
+	// Node
 	StopChan chan bool
 }
 
@@ -40,17 +47,17 @@ func CreateAndStart() (Node, error) {
 }
 
 func (n *Node) Print() {
-	fmt.Println("Node address : " + n.Socket.GetAdress())
+	fmt.Println("Node address : " + n.Socket.GetAddress())
 }
 
 func (n *Node) Start() error {
-	defer fmt.Println(n.Socket.GetAdress(), "Started without error")
+	defer fmt.Println(n.Socket.GetAddress(), "Started without error")
 
 	// TODO : start on create ?
 
 	// Main goroutine of node -> waits for packets
 	go func() {
-		defer fmt.Println(n.Socket.GetAdress(), "Stopped")
+		defer fmt.Println(n.Socket.GetAddress(), "Stopped")
 		for {
 			pkt, err := n.Socket.Recv()
 			if err != nil {
@@ -72,7 +79,7 @@ func (n *Node) Start() error {
 
 func (n *Node) Join(server string) error {
 	pktJoin := transport.Packet{
-		Source:      n.Socket.GetAdress(),
+		Source:      n.Socket.GetAddress(),
 		Destination: server,
 		Type:        transport.Join,
 	}
@@ -82,6 +89,22 @@ func (n *Node) Join(server string) error {
 	}
 
 	return nil
+}
+
+func (n *Node) SendWeights(server string) error {
+	//weights := n.NeuralNetwork.GetWeights()
+	weights := ""
+
+	pkt := transport.Packet{
+		Source:      n.Socket.GetAddress(),
+		Destination: server,
+		Message:     weights,
+		Type:        transport.EncryptedChunk,
+	}
+
+	// Send to server
+	err := n.Socket.Send(server, pkt)
+	return err
 }
 
 // Handler of packet
@@ -96,15 +119,16 @@ func (n *Node) OnReceive(pkt transport.Packet) error {
 	if len(n.GetPacketsByType(transport.EncryptedChunk)) >= len(n.Server.Participants) && len(n.Server.Participants) > 0 {
 		fmt.Println("Server calculations on", len(n.Server.Participants), "polynomes")
 
-		cipherText1 := new(bfv.Ciphertext)
-		cipherText2 := new(bfv.Ciphertext)
+		cipherText1 := new(ckks.Ciphertext)
+		cipherText2 := new(ckks.Ciphertext)
 		encryption.UnmarshalFromBase64(cipherText1, n.Packets[0].Message)
 		encryption.UnmarshalFromBase64(cipherText2, n.Packets[1].Message)
 		n.Server.Responses = append(n.Server.Responses, cipherText1)
 		n.Server.Responses = append(n.Server.Responses, cipherText2)
 
-		// Server calculations
-		n.Server.Responses = append(n.Server.Responses, n.Server.RelinearizeNew(n.Server.MulNew(n.Server.Responses[0], n.Server.Responses[1])))
+		// Server calculations -> averages the weights
+		n.Server.Responses = append(n.Server.Responses, n.Server.RelinearizeNew(n.Server.AddNew(n.Server.Responses[0], n.Server.Responses[1])))
+		// No simple division in encryption -> make the nodes divide the weights by nb of participants on receive.
 		n.Server.Result = n.Server.Responses[2]
 
 		// Results
@@ -113,7 +137,7 @@ func (n *Node) OnReceive(pkt transport.Packet) error {
 		// Send // Multicast
 		for _, p := range n.Packets {
 			pktResult := transport.Packet{
-				Source:      n.Socket.GetAdress(),
+				Source:      n.Socket.GetAddress(),
 				Destination: p.Source,
 				Message:     resultsCipher,
 				Type:        transport.Result,

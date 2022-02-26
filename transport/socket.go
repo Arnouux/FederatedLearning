@@ -115,7 +115,7 @@ func (s *Socket) Recv() (Packet, error) {
 		count := 0
 		// send ack
 		pktAck := Packet{
-			Source:      s.GetAdress(),
+			Source:      s.GetAddress(),
 			Destination: pkt.Source,
 			Message:     strconv.Itoa(count),
 			Type:        Ack,
@@ -152,7 +152,7 @@ func (s *Socket) Recv() (Packet, error) {
 
 			// send ack
 			pktAck := Packet{
-				Source:      s.GetAdress(),
+				Source:      s.GetAddress(),
 				Destination: pkt.Source,
 				Message:     strconv.Itoa(count),
 				Type:        Ack,
@@ -178,6 +178,6 @@ func (s *Socket) Recv() (Packet, error) {
 	return pktFinal, nil
 }
 
-func (s *Socket) GetAdress() string {
+func (s *Socket) GetAddress() string {
 	return s.connection.LocalAddr().String()
 }

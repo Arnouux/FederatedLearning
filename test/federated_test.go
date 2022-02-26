@@ -8,7 +8,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/ldsec/lattigo/v2/bfv"
+	"github.com/ldsec/lattigo/v2/ckks"
 	"github.com/stretchr/testify/require"
 )
 
@@ -21,7 +21,7 @@ func Test_SendRecv(t *testing.T) {
 	//n2.Print()
 
 	pkt := transport.Packet{
-		Destination: n2.Socket.GetAdress(),
+		Destination: n2.Socket.GetAddress(),
 		Message:     "Hello_Test_SendRecv",
 		//Payload:     json.RawMessage(`{"Message":"hello"}`),
 	}
@@ -32,7 +32,7 @@ func Test_SendRecv(t *testing.T) {
 		//fmt.Println(string(pkt.Message))
 		recvd <- 1
 	}()
-	go n1.Socket.Send(n2.Socket.GetAdress(), pkt)
+	go n1.Socket.Send(n2.Socket.GetAddress(), pkt)
 	_ = <-recvd
 	// Should terminate
 }
@@ -41,14 +41,14 @@ func Test_HE(t *testing.T) {
 	client := encryption.NewClient()
 
 	// Encrypt coeffs
-	encrypted1, _ := client.Encrypt(2, 3)
-	encrypted2, _ := client.Encrypt(4, 5)
+	encrypted1, _ := client.Encrypt(2.0, 3.0)
+	encrypted2, _ := client.Encrypt(4.0, 5.0)
 
 	server := encryption.NewServer()
 
 	// Send to server
-	cipherText1 := new(bfv.Ciphertext)
-	cipherText2 := new(bfv.Ciphertext)
+	cipherText1 := new(ckks.Ciphertext)
+	cipherText2 := new(ckks.Ciphertext)
 	encryption.UnmarshalFromBase64(cipherText1, encrypted1)
 	encryption.UnmarshalFromBase64(cipherText2, encrypted2)
 	server.Responses = append(server.Responses, cipherText1)
@@ -73,12 +73,12 @@ func Test_StartNode(t *testing.T) {
 	go node2.Start()
 
 	pkt := transport.Packet{
-		Source:      node2.Socket.GetAdress(),
-		Destination: node1.Socket.GetAdress(),
+		Source:      node2.Socket.GetAddress(),
+		Destination: node1.Socket.GetAddress(),
 		Message:     "Hello_Test_StartNode",
 	}
 
-	node2.Socket.Send(node1.Socket.GetAdress(), pkt)
+	node2.Socket.Send(node1.Socket.GetAddress(), pkt)
 
 	time.Sleep(time.Millisecond * 200)
 
@@ -94,13 +94,13 @@ func Test_SendHE(t *testing.T) {
 
 	encrypted, _ := node1.Client.Encrypt(3, 4)
 	pkt := transport.Packet{
-		Source:      node2.Socket.GetAdress(),
-		Destination: node1.Socket.GetAdress(),
+		Source:      node2.Socket.GetAddress(),
+		Destination: node1.Socket.GetAddress(),
 		Message:     encrypted,
 		Type:        transport.EncryptedChunk,
 	}
 
-	err := node2.Socket.Send(node1.Socket.GetAdress(), pkt)
+	err := node2.Socket.Send(node1.Socket.GetAddress(), pkt)
 	require.NoError(t, err)
 
 	time.Sleep(time.Millisecond * 200)
@@ -119,38 +119,38 @@ func Test_ServerCalculations(t *testing.T) {
 	node2.Start()
 
 	server := node.Create()
-	server.Server.AddParticipants(node1.Socket.GetAdress(), node2.Socket.GetAdress())
+	server.Server.AddParticipants(node1.Socket.GetAddress(), node2.Socket.GetAddress())
 	server.Start()
 	serverEncryption := encryption.NewServer()
 
 	// Node 1 encrypts and sends
 	encrypted, _ := node1.Client.Encrypt(3, 4)
 	pkt := transport.Packet{
-		Source:      node1.Socket.GetAdress(),
-		Destination: server.Socket.GetAdress(),
+		Source:      node1.Socket.GetAddress(),
+		Destination: server.Socket.GetAddress(),
 		Message:     encrypted,
 		Type:        transport.EncryptedChunk,
 	}
-	err := node1.Socket.Send(server.Socket.GetAdress(), pkt)
+	err := node1.Socket.Send(server.Socket.GetAddress(), pkt)
 	require.NoError(t, err)
 
 	// Node 2 encrypts and sends
 	encrypted, _ = node2.Client.Encrypt(5, 10)
 	pkt = transport.Packet{
-		Source:      node2.Socket.GetAdress(),
-		Destination: server.Socket.GetAdress(),
+		Source:      node2.Socket.GetAddress(),
+		Destination: server.Socket.GetAddress(),
 		Message:     encrypted,
 		Type:        transport.EncryptedChunk,
 	}
-	err = node2.Socket.Send(server.Socket.GetAdress(), pkt)
+	err = node2.Socket.Send(server.Socket.GetAddress(), pkt)
 	require.NoError(t, err)
 
 	time.Sleep(time.Millisecond * 200)
 	require.Equal(t, 2, len(server.Packets))
 
 	// Server reads encryptions
-	cipherText1 := new(bfv.Ciphertext)
-	cipherText2 := new(bfv.Ciphertext)
+	cipherText1 := new(ckks.Ciphertext)
+	cipherText2 := new(ckks.Ciphertext)
 	encryption.UnmarshalFromBase64(cipherText1, server.Packets[0].Message)
 	encryption.UnmarshalFromBase64(cipherText2, server.Packets[1].Message)
 
@@ -174,7 +174,7 @@ func Test_ServerSendResults(t *testing.T) {
 	node2 := node.Create()
 
 	server := node.Create()
-	server.Server.AddParticipants(node1.Socket.GetAdress(), node2.Socket.GetAdress())
+	server.Server.AddParticipants(node1.Socket.GetAddress(), node2.Socket.GetAddress())
 
 	err := server.Start()
 	require.NoError(t, err)
@@ -182,8 +182,8 @@ func Test_ServerSendResults(t *testing.T) {
 	// Node 1 encrypts and sends
 	encrypted, _ := node1.Client.Encrypt(3, 4)
 	pkt := transport.Packet{
-		Source:      node1.Socket.GetAdress(),
-		Destination: server.Socket.GetAdress(),
+		Source:      node1.Socket.GetAddress(),
+		Destination: server.Socket.GetAddress(),
 		Message:     encrypted,
 		Type:        transport.EncryptedChunk,
 	}
@@ -191,19 +191,19 @@ func Test_ServerSendResults(t *testing.T) {
 	node1.Start()
 	node2.Start()
 
-	err = node1.Socket.Send(server.Socket.GetAdress(), pkt)
+	err = node1.Socket.Send(server.Socket.GetAddress(), pkt)
 	require.NoError(t, err)
 
 	// Node 2 encrypts and sends
 	encrypted2, _ := node2.Client.Encrypt(5, 10)
 	pkt2 := transport.Packet{
-		Source:      node2.Socket.GetAdress(),
-		Destination: server.Socket.GetAdress(),
+		Source:      node2.Socket.GetAddress(),
+		Destination: server.Socket.GetAddress(),
 		Message:     encrypted2,
 		Type:        transport.EncryptedChunk,
 	}
 
-	err = node2.Socket.Send(server.Socket.GetAdress(), pkt2)
+	err = node2.Socket.Send(server.Socket.GetAddress(), pkt2)
 	require.NoError(t, err)
 
 	time.Sleep(time.Millisecond * 200)
@@ -225,6 +225,8 @@ func Test_ServerSendResults(t *testing.T) {
 
 	require.Equal(t, coeffs[0], coeffs2[0])
 	require.Equal(t, coeffs[1], coeffs2[1])
+	require.Equal(t, int64(10+4), coeffs2[1])
+	require.Equal(t, int64(5+3), coeffs2[0])
 }
 
 func Test_ServerWaitsForNodes(t *testing.T) {
@@ -235,7 +237,7 @@ func Test_ServerWaitsForNodes(t *testing.T) {
 	server.Start()
 
 	node1 := node.Create()
-	node1.Join(server.Socket.GetAdress())
+	node1.Join(server.Socket.GetAddress())
 
 	time.Sleep(time.Millisecond * 200)
 
@@ -277,6 +279,15 @@ func Test_NeuralNetwork(t *testing.T) {
 	})
 }
 
+func Test_Weights(t *testing.T) {
+	n := node.Create()
+	n.NeuralNetwork = neural.CreateNetwork(4, 1, 1, 5, 0.01)
+	n.NeuralNetwork.InitiateWeights()
+	n.NeuralNetwork.Print()
+
+	require.Equal(t, 1, 2)
+}
+
 // Prepare number of layers, number of neurons,
 // learning rate, number of global iterations,
 // activation functions, local batch size.
@@ -286,17 +297,21 @@ func Test_ServerPreparesParameters(t *testing.T) {
 	server.Start()
 
 	node1, err1 := node.CreateAndStart()
-	node1.Join(server.Socket.GetAdress())
+	node1.Join(server.Socket.GetAddress())
 	node2, err2 := node.CreateAndStart()
-	node2.Join(server.Socket.GetAdress())
+	node2.Join(server.Socket.GetAddress())
 	require.NoError(t, err1, err2)
 
 	// TODO : See Protocol 1 Collective Training
-
 }
 
 func Test_LocalGradientDescent(t *testing.T) {
 	// TODO : See Protocol 2 LGD
+}
+
+func Test_UpdateLocalModel(t *testing.T) {
+	// After receiving aggregated weights,
+	// decrypt and apply to the node's nn.
 }
 
 func Test_CombineGradients(t *testing.T) {

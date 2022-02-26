@@ -8,77 +8,77 @@ import (
 	"fmt"
 	"reflect"
 
-	"github.com/ldsec/lattigo/v2/bfv"
+	"github.com/ldsec/lattigo/v2/ckks"
 	"github.com/ldsec/lattigo/v2/rlwe"
 )
 
 type Client struct {
-	bfv.Encoder
-	bfv.Encryptor
-	bfv.Decryptor
+	ckks.Encoder
+	ckks.Encryptor
+	ckks.Decryptor
 
-	Params bfv.Parameters
+	Params ckks.Parameters
 }
 
 type Server struct {
 	Participants []string
-	bfv.Evaluator
-	Responses []*bfv.Ciphertext
-	Result    *bfv.Ciphertext
+	ckks.Evaluator
+	Responses []*ckks.Ciphertext
+	Result    *ckks.Ciphertext
 }
 
 func NewClient() Client {
 
 	client := Client{}
 
-	p := bfv.DefaultParams[1]
-	params, _ := bfv.NewParametersFromLiteral(p)
+	p := ckks.DefaultParams[1]
+	params, _ := ckks.NewParametersFromLiteral(p)
 	client.Params = params
 	//keyGenerator := bfv.NewKeyGenerator(params)
-	client.Encoder = bfv.NewEncoder(params)
+	client.Encoder = ckks.NewEncoder(params)
 
-	sk := bfv.NewSecretKey(params)
-	client.Encryptor = bfv.NewEncryptor(params, sk)
-	client.Decryptor = bfv.NewDecryptor(params, sk)
+	sk := ckks.NewSecretKey(params)
+	client.Encryptor = ckks.NewEncryptor(params, sk)
+	client.Decryptor = ckks.NewDecryptor(params, sk)
 
 	return client
 }
 
 func NewServer() Server {
 
-	p := bfv.DefaultParams[1]
-	params, _ := bfv.NewParametersFromLiteral(p)
+	p := ckks.DefaultParams[1]
+	params, _ := ckks.NewParametersFromLiteral(p)
 	evaluationKey := rlwe.EvaluationKey{
-		Rlk: bfv.NewRelinearizationKey(params, 2),
+		Rlk: ckks.NewRelinearizationKey(params),
 	}
 	return Server{
-		Evaluator:    bfv.NewEvaluator(params, evaluationKey),
-		Responses:    make([]*bfv.Ciphertext, 0),
+		Evaluator:    ckks.NewEvaluator(params, evaluationKey),
+		Responses:    make([]*ckks.Ciphertext, 0),
 		Participants: make([]string, 0),
 	}
 }
 
-func (client *Client) Encrypt(values ...int64) (string, error) {
-	text := bfv.NewPlaintext(client.Params)
+func (client *Client) Encrypt(values ...float64) (string, error) {
+	text := ckks.NewPlaintext(client.Params, 1, 0.01)
 
-	coeffs := make([]int64, 0)
+	coeffs := make([]float64, 0)
 	for _, v := range values {
 		coeffs = append(coeffs, v)
 	}
-	client.EncodeInt(coeffs, text)
+	client.EncodeCoeffs(coeffs, text)
 	encrypted := client.EncryptNew(text)
 	output := MarshalToBase64String(encrypted)
 
 	return output, nil
 }
 
-func (client *Client) Decrypt(input string) ([]int64, error) {
-	cipher := bfv.NewCiphertext(client.Params, 1)
+func (client *Client) Decrypt(input string) ([]float64, error) {
+	cipher := ckks.NewCiphertext(client.Params, 1, 1, 0.01)
 	UnmarshalFromBase64(cipher, input)
 
 	text := client.DecryptNew(cipher)
-	coeffs := make([]int64, 2)
-	for i, v := range client.DecodeIntNew(text)[:2] {
+	coeffs := make([]float64, 2)
+	for i, v := range client.DecodeCoeffs(text)[:2] {
 		coeffs[i] = v
 	}
 	return coeffs, nil

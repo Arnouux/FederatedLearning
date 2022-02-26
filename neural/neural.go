@@ -79,7 +79,13 @@ func (nn *NeuralNetwork) Print() {
 	}
 }
 
-// TODO generalize / gonum ?
+func (nn *NeuralNetwork) GetWeights() []int64 {
+	weights := make([]int64, 0)
+
+	return weights
+}
+
+// TODO generalize
 func (nn *NeuralNetwork) Forward(input []float64) ([][]float64, error) {
 	if len(input) != nn.InputDimensions {
 		return nil, errors.New("[neural.Forward]: input dimensions don't match the input layer")
