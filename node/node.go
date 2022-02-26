@@ -109,7 +109,7 @@ func (n *Node) SendWeights(server string) error {
 
 // Handler of packet
 func (n *Node) OnReceive(pkt transport.Packet) error {
-	fmt.Println("Pkt received: ", pkt.Type, "from", pkt.Source)
+	//fmt.Println("Pkt received: ", pkt.Type, "from", pkt.Source)
 	// switch pkt.Type {
 	// case transport.EncryptedChunk:
 	// 	OnReceiveEncryptedChunk(pkt)
@@ -127,9 +127,8 @@ func (n *Node) OnReceive(pkt transport.Packet) error {
 		n.Server.Responses = append(n.Server.Responses, cipherText2)
 
 		// Server calculations -> averages the weights
-		n.Server.Responses = append(n.Server.Responses, n.Server.RelinearizeNew(n.Server.AddNew(n.Server.Responses[0], n.Server.Responses[1])))
-		// No simple division in encryption -> make the nodes divide the weights by nb of participants on receive.
-		n.Server.Result = n.Server.Responses[2]
+		adds := n.Server.AddNew(n.Server.Responses[0], n.Server.Responses[1])
+		n.Server.Result = n.Server.MultByConstNew(adds, 0.5)
 
 		// Results
 		resultsCipher := encryption.MarshalToBase64String(n.Server.Result)

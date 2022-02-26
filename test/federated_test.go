@@ -5,6 +5,7 @@ import (
 	"federated/neural"
 	"federated/node"
 	"federated/transport"
+	"fmt"
 	"testing"
 	"time"
 
@@ -41,28 +42,53 @@ func Test_HE(t *testing.T) {
 	client := encryption.NewClient()
 
 	// Encrypt coeffs
-	encrypted1, _ := client.Encrypt(2.0, 3.0)
 	encrypted2, _ := client.Encrypt(4.0, 5.0)
 
 	server := encryption.NewServer()
 
 	// Send to server
-	cipherText1 := new(ckks.Ciphertext)
+	p := ckks.DefaultParams[1]
+	params, _ := ckks.NewParametersFromLiteral(p)
+	cipherText1 := ckks.NewCiphertext(params, 100, 1, 0.01)
 	cipherText2 := new(ckks.Ciphertext)
-	encryption.UnmarshalFromBase64(cipherText1, encrypted1)
 	encryption.UnmarshalFromBase64(cipherText2, encrypted2)
 	server.Responses = append(server.Responses, cipherText1)
 	server.Responses = append(server.Responses, cipherText2)
-	// Server calculations
-	server.Responses = append(server.Responses, server.RelinearizeNew(server.MulNew(server.Responses[0], server.Responses[1])))
-	server.Result = server.Responses[2]
 
-	// Results
-	cipherResult := encryption.MarshalToBase64String(server.Result)
-	coeffs, _ := client.Decrypt(cipherResult)
+	// Plaintext creation and encoding process
+	p2 := ckks.DefaultParams[1]
+	params2, _ := ckks.NewParametersFromLiteral(p2)
+	plaintext := ckks.NewPlaintext(params2, params2.MaxLevel(), params2.DefaultScale())
+	client.Encoder.EncodeCoeffs([]float64{1, 2, 3}, plaintext)
+	// Encryption process
+	var ciphertext *ckks.Ciphertext
+	ciphertext = client.Encryptor.EncryptNew(plaintext)
+	// Calcs
+	adds := server.Evaluator.AddNew(ciphertext, ciphertext)
+	mean := server.Evaluator.MultByConstNew(adds, 0.5)
+	// For transport
+	cipher := encryption.MarshalToBase64String(mean)
+	// Received
+	cipher2 := ckks.NewCiphertext(client.Params, 1, 1, 0.01)
+	encryption.UnmarshalFromBase64(cipher2, cipher)
+	// Decryption process
+	coefs := client.Encoder.DecodeCoeffs(client.Decryptor.DecryptNew(cipher2))
+	coefs = encryption.RemoveZerosCoeffs(coefs)
+	fmt.Println(int(coefs[0]+0.5), int(coefs[1]+0.5), int(coefs[2]+0.5))
+	require.Equal(t, 1, int(coefs[0]+0.5))
+	require.Equal(t, 2, int(coefs[1]+0.5))
+	require.Equal(t, 3, int(coefs[2]+0.5))
 
-	require.Equal(t, int64(2*4), coeffs[0])
-	require.Equal(t, int64(3*5), coeffs[1])
+	// ----
+	// // Server calculations
+	// fmt.Println(server.MulNew(server.Responses[0], server.Responses[1]))
+	// server.Responses = append(server.Responses, server.RelinearizeNew(server.MulNew(server.Responses[0], server.Responses[1])))
+	// server.Result = server.Responses[2]
+	// // Results
+	// cipherResult := encryption.MarshalToBase64String(server.Result)
+	// coeffs, _ := client.Decrypt(cipherResult)
+	// require.Equal(t, int64(2*4), coeffs[0])
+	// require.Equal(t, int64(3*5), coeffs[1])
 }
 
 func Test_StartNode(t *testing.T) {
@@ -154,19 +180,23 @@ func Test_ServerCalculations(t *testing.T) {
 	encryption.UnmarshalFromBase64(cipherText1, server.Packets[0].Message)
 	encryption.UnmarshalFromBase64(cipherText2, server.Packets[1].Message)
 
-	// TODO : make serverEncryptor in server node ?
+	// later : make serverEncryptor in server node
 	serverEncryption.Responses = append(serverEncryption.Responses, cipherText1)
 	serverEncryption.Responses = append(serverEncryption.Responses, cipherText2)
 	// Server calculations
-	serverEncryption.Responses = append(serverEncryption.Responses, serverEncryption.RelinearizeNew(serverEncryption.MulNew(serverEncryption.Responses[0], serverEncryption.Responses[1])))
-	serverEncryption.Result = serverEncryption.Responses[2]
+	adds := serverEncryption.AddNew(serverEncryption.Responses[0], serverEncryption.Responses[1])
+	serverEncryption.Result = serverEncryption.MultByConstNew(adds, 0.5)
+
+	fmt.Println(serverEncryption.Result)
 
 	// Results
 	cipherResult := encryption.MarshalToBase64String(serverEncryption.Result)
 	coeffs, _ := node1.Decrypt(cipherResult)
 
-	require.Equal(t, int64(3*5), coeffs[0])
-	require.Equal(t, int64(4*10), coeffs[1])
+	require.GreaterOrEqual(t, 4+0.000001, coeffs[0])
+	require.LessOrEqual(t, 4-0.000001, coeffs[0])
+	require.GreaterOrEqual(t, 7+0.000001, coeffs[1])
+	require.LessOrEqual(t, 7-0.000001, coeffs[1])
 }
 
 func Test_ServerSendResults(t *testing.T) {
@@ -225,8 +255,10 @@ func Test_ServerSendResults(t *testing.T) {
 
 	require.Equal(t, coeffs[0], coeffs2[0])
 	require.Equal(t, coeffs[1], coeffs2[1])
-	require.Equal(t, int64(10+4), coeffs2[1])
-	require.Equal(t, int64(5+3), coeffs2[0])
+	require.GreaterOrEqual(t, 4+0.000001, coeffs[0])
+	require.LessOrEqual(t, 4-0.000001, coeffs[0])
+	require.GreaterOrEqual(t, 7+0.000001, coeffs[1])
+	require.LessOrEqual(t, 7-0.000001, coeffs[1])
 }
 
 func Test_ServerWaitsForNodes(t *testing.T) {
@@ -285,7 +317,6 @@ func Test_Weights(t *testing.T) {
 	n.NeuralNetwork.InitiateWeights()
 	n.NeuralNetwork.Print()
 
-	require.Equal(t, 1, 2)
 }
 
 // Prepare number of layers, number of neurons,

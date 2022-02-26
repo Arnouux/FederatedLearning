@@ -64,7 +64,6 @@ func (s *Socket) Send(dest string, pkt Packet) error {
 
 			// waits for ack before sending next packet
 			//time.Sleep(time.Millisecond * 10)
-			fmt.Println("waiting for ack")
 			<-s.chanAck
 			// fmt.Println(b)
 		}
@@ -106,10 +105,8 @@ func (s *Socket) Recv() (Packet, error) {
 	}
 	messageFull += pkt.Message
 
-	fmt.Println("received", pkt.Type, "from", pkt.Source)
 	switch pkt.Type {
 	case Ack:
-		fmt.Println("ack received")
 		s.chanAck <- true
 	case EncryptedChunk, Result:
 		count := 0
@@ -122,7 +119,6 @@ func (s *Socket) Recv() (Packet, error) {
 		}
 		count += 1
 		s.Send(pkt.Source, pktAck)
-		fmt.Println("ack sent to", pktAck.Destination)
 
 		currentSource := pkt.Source
 

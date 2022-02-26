@@ -44,6 +44,14 @@ func NewClient() Client {
 	return client
 }
 
+// func Test() {
+// 	op1 := ckks.Ciphertext{
+// 		Ciphertext: rlwe,
+// 		Scale:      0.01,
+// 	}
+
+// }
+
 func NewServer() Server {
 
 	p := ckks.DefaultParams[1]
@@ -59,14 +67,14 @@ func NewServer() Server {
 }
 
 func (client *Client) Encrypt(values ...float64) (string, error) {
-	text := ckks.NewPlaintext(client.Params, 1, 0.01)
+	plaintext := ckks.NewPlaintext(client.Params, client.Params.MaxLevel(), client.Params.DefaultScale())
 
 	coeffs := make([]float64, 0)
 	for _, v := range values {
 		coeffs = append(coeffs, v)
 	}
-	client.EncodeCoeffs(coeffs, text)
-	encrypted := client.EncryptNew(text)
+	client.EncodeCoeffs(coeffs, plaintext)
+	encrypted := client.EncryptNew(plaintext)
 	output := MarshalToBase64String(encrypted)
 
 	return output, nil
@@ -125,4 +133,14 @@ func (s *Server) AddParticipants(ps ...string) {
 	for _, p := range ps {
 		s.Participants = append(s.Participants, p)
 	}
+}
+
+func RemoveZerosCoeffs(coeffs []float64) []float64 {
+	newCoeffs := make([]float64, 0)
+	for _, c := range coeffs {
+		if c > 1e-7 {
+			newCoeffs = append(newCoeffs, c)
+		}
+	}
+	return newCoeffs
 }
