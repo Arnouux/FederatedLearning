@@ -42,7 +42,7 @@ func Test_HE(t *testing.T) {
 	client := encryption.NewClient()
 
 	// Encrypt coeffs
-	encrypted2, _ := client.Encrypt(4.0, 5.0)
+	encrypted2, _ := client.Encrypt([]float64{4, 5})
 
 	server := encryption.NewServer()
 
@@ -118,7 +118,7 @@ func Test_SendHE(t *testing.T) {
 	node2 := node.Create()
 	go node2.Start()
 
-	encrypted, _ := node1.Client.Encrypt(3, 4)
+	encrypted, _ := node1.Client.Encrypt([]float64{3, 4})
 	pkt := transport.Packet{
 		Source:      node2.Socket.GetAddress(),
 		Destination: node1.Socket.GetAddress(),
@@ -150,7 +150,7 @@ func Test_ServerCalculations(t *testing.T) {
 	serverEncryption := encryption.NewServer()
 
 	// Node 1 encrypts and sends
-	encrypted, _ := node1.Client.Encrypt(3, 4)
+	encrypted, _ := node1.Client.Encrypt([]float64{3, 4})
 	pkt := transport.Packet{
 		Source:      node1.Socket.GetAddress(),
 		Destination: server.Socket.GetAddress(),
@@ -161,7 +161,7 @@ func Test_ServerCalculations(t *testing.T) {
 	require.NoError(t, err)
 
 	// Node 2 encrypts and sends
-	encrypted, _ = node2.Client.Encrypt(5, 10)
+	encrypted, _ = node2.Client.Encrypt([]float64{5, 10})
 	pkt = transport.Packet{
 		Source:      node2.Socket.GetAddress(),
 		Destination: server.Socket.GetAddress(),
@@ -210,7 +210,7 @@ func Test_ServerSendResults(t *testing.T) {
 	require.NoError(t, err)
 
 	// Node 1 encrypts and sends
-	encrypted, _ := node1.Client.Encrypt(3, 4)
+	encrypted, _ := node1.Client.Encrypt([]float64{3, 4, 5})
 	pkt := transport.Packet{
 		Source:      node1.Socket.GetAddress(),
 		Destination: server.Socket.GetAddress(),
@@ -225,7 +225,7 @@ func Test_ServerSendResults(t *testing.T) {
 	require.NoError(t, err)
 
 	// Node 2 encrypts and sends
-	encrypted2, _ := node2.Client.Encrypt(5, 10)
+	encrypted2, _ := node2.Client.Encrypt([]float64{5, 10, 0})
 	pkt2 := transport.Packet{
 		Source:      node2.Socket.GetAddress(),
 		Destination: server.Socket.GetAddress(),
@@ -255,10 +255,13 @@ func Test_ServerSendResults(t *testing.T) {
 
 	require.Equal(t, coeffs[0], coeffs2[0])
 	require.Equal(t, coeffs[1], coeffs2[1])
+	require.Equal(t, coeffs[2], coeffs2[2])
 	require.GreaterOrEqual(t, 4+0.000001, coeffs[0])
 	require.LessOrEqual(t, 4-0.000001, coeffs[0])
 	require.GreaterOrEqual(t, 7+0.000001, coeffs[1])
 	require.LessOrEqual(t, 7-0.000001, coeffs[1])
+	require.GreaterOrEqual(t, 2.5+0.000001, coeffs[2])
+	require.LessOrEqual(t, 2.5-0.000001, coeffs[2])
 }
 
 func Test_ServerWaitsForNodes(t *testing.T) {
@@ -312,10 +315,19 @@ func Test_NeuralNetwork(t *testing.T) {
 }
 
 func Test_Weights(t *testing.T) {
-	n := node.Create()
-	n.NeuralNetwork = neural.CreateNetwork(4, 1, 1, 5, 0.01)
-	n.NeuralNetwork.InitiateWeights()
-	n.NeuralNetwork.Print()
+	n1 := node.Create()
+	go n1.Start()
+	n2 := node.Create()
+	go n2.Start()
+	n1.NeuralNetwork = neural.CreateNetwork(4, 1, 1, 5, 0.01)
+	n1.NeuralNetwork.InitiateWeights()
+
+	err := n1.SendWeights(n2.Socket.GetAddress())
+	require.NoError(t, err)
+
+	time.Sleep(time.Millisecond * 200)
+
+	require.Equal(t, 1, len(n2.GetPacketsByType(transport.EncryptedChunk)))
 
 }
 

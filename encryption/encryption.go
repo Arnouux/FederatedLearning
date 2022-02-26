@@ -66,13 +66,9 @@ func NewServer() Server {
 	}
 }
 
-func (client *Client) Encrypt(values ...float64) (string, error) {
+func (client *Client) Encrypt(coeffs []float64) (string, error) {
 	plaintext := ckks.NewPlaintext(client.Params, client.Params.MaxLevel(), client.Params.DefaultScale())
 
-	coeffs := make([]float64, 0)
-	for _, v := range values {
-		coeffs = append(coeffs, v)
-	}
 	client.EncodeCoeffs(coeffs, plaintext)
 	encrypted := client.EncryptNew(plaintext)
 	output := MarshalToBase64String(encrypted)
@@ -85,8 +81,10 @@ func (client *Client) Decrypt(input string) ([]float64, error) {
 	UnmarshalFromBase64(cipher, input)
 
 	text := client.DecryptNew(cipher)
-	coeffs := make([]float64, 2)
-	for i, v := range client.DecodeCoeffs(text)[:2] {
+
+	// TODO check size
+	coeffs := make([]float64, 3)
+	for i, v := range client.DecodeCoeffs(text)[:3] {
 		coeffs[i] = v
 	}
 	return coeffs, nil

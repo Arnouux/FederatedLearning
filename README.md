@@ -12,9 +12,10 @@ In any case, you will need to instanciate nodes with `node.CreateAndStart()` and
 - [x] send HE messages
 - [x] fragment packets to fit max UDP size
 - [x] server can send results back
-- [ ] make sure ACKs correspond to current msg
+- [ ] make sure ACKs correspond to current msg / better udp
 - [x] nodes can join server / nb of participants 
 - [ ] gradients calculations
-- [ ] aggregation
+- [x] aggregation
+    - [ ] better
 - [ ] byzantine environnement resistance
 - [x] change BFV to CKKS for float operations

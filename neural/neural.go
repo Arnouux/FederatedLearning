@@ -79,9 +79,25 @@ func (nn *NeuralNetwork) Print() {
 	}
 }
 
-func (nn *NeuralNetwork) GetWeights() []int64 {
-	weights := make([]int64, 0)
-
+func (nn *NeuralNetwork) GetWeights() []float64 {
+	weights := make([]float64, 0)
+	for input := 0; input < nn.InputDimensions; input++ {
+		for _, w := range nn.Weights[0][input] {
+			weights = append(weights, w)
+		}
+	}
+	for layer := 1; layer < nn.NbLayers; layer++ {
+		for neuron := 0; neuron < nn.NbNeurons; neuron++ {
+			for _, w := range nn.Weights[layer][neuron] {
+				weights = append(weights, w)
+			}
+		}
+	}
+	for input := 0; input < nn.OutputDimensions; input++ {
+		for _, w := range nn.Weights[nn.NbLayers+1][input] {
+			weights = append(weights, w)
+		}
+	}
 	return weights
 }
 

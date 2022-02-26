@@ -40,9 +40,10 @@ func Create() Node {
 	return n
 }
 
+// UNFONCTIONAL, TO BE REPAIRED
 func CreateAndStart() (Node, error) {
 	n := Create()
-	err := n.Start()
+	err := n.Start() // surely needs a go ?
 	return n, err
 }
 
@@ -67,9 +68,12 @@ func (n *Node) Start() error {
 			// Not saving ACk packets
 			if pkt.Type != transport.Ack {
 				// TODO save packets per types ?
+				fmt.Println(n.Socket.GetAddress(), "received", pkt.Type)
 				n.Packets = append(n.Packets, pkt)
+				fmt.Println(n.Socket.GetAddress(), n.Packets)
 
 				n.OnReceive(pkt)
+				fmt.Println(n.Socket.GetAddress(), n.Packets)
 			}
 
 		}
@@ -91,19 +95,23 @@ func (n *Node) Join(server string) error {
 	return nil
 }
 
+// Weights are sent with a separator between them, in a string
 func (n *Node) SendWeights(server string) error {
-	//weights := n.NeuralNetwork.GetWeights()
-	weights := ""
+	weights := n.NeuralNetwork.GetWeights()
+	encrypted, err := n.Client.Encrypt(weights)
+	if err != nil {
+		return err
+	}
 
 	pkt := transport.Packet{
 		Source:      n.Socket.GetAddress(),
 		Destination: server,
-		Message:     weights,
+		Message:     encrypted,
 		Type:        transport.EncryptedChunk,
 	}
 
 	// Send to server
-	err := n.Socket.Send(server, pkt)
+	err = n.Socket.Send(server, pkt)
 	return err
 }
 
