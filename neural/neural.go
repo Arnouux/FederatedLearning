@@ -101,6 +101,27 @@ func (nn *NeuralNetwork) GetWeights() []float64 {
 	return weights
 }
 
+func (nn *NeuralNetwork) SetWeights(ws []float64) {
+	index := 0
+	for input := 0; input < nn.InputDimensions; input++ {
+		for i := range nn.Weights[0][input] {
+			nn.Weights[0][input][i] = ws[index]
+		}
+	}
+	for layer := 1; layer < nn.NbLayers; layer++ {
+		for neuron := 0; neuron < nn.NbNeurons; neuron++ {
+			for i := range nn.Weights[layer][neuron] {
+				nn.Weights[layer][neuron][i] = ws[index]
+			}
+		}
+	}
+	for input := 0; input < nn.OutputDimensions; input++ {
+		for i := range nn.Weights[nn.NbLayers+1][input] {
+			nn.Weights[nn.NbLayers+1][input][i] = ws[index]
+		}
+	}
+}
+
 // TODO generalize
 func (nn *NeuralNetwork) Forward(input []float64) ([][]float64, error) {
 	if len(input) != nn.InputDimensions {

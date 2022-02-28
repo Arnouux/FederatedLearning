@@ -68,12 +68,8 @@ func (n *Node) Start() error {
 			// Not saving ACk packets
 			if pkt.Type != transport.Ack {
 				// TODO save packets per types ?
-				fmt.Println(n.Socket.GetAddress(), "received", pkt.Type)
-				n.Packets = append(n.Packets, pkt)
-				fmt.Println(n.Socket.GetAddress(), n.Packets)
 
 				n.OnReceive(pkt)
-				fmt.Println(n.Socket.GetAddress(), n.Packets)
 			}
 
 		}
@@ -122,7 +118,18 @@ func (n *Node) OnReceive(pkt transport.Packet) error {
 	// case transport.EncryptedChunk:
 	// 	OnReceiveEncryptedChunk(pkt)
 	// }
+	if pkt.Type == transport.EncryptedChunk {
+		n.Packets = append(n.Packets, pkt)
+	}
+	if pkt.Type == transport.Result {
+		n.Packets = append(n.Packets, pkt)
+		cipher := ckks.NewCiphertext(n.Params, 1, 1, 0.01)
+		encryption.UnmarshalFromBase64(cipher, pkt.Message)
+		coeffs := n.DecodeCoeffs(n.DecryptNew(cipher))
+		n.SetWeights(coeffs)
+	}
 
+	// TODO geenralize to n participants
 	// If 2 packets -> Calculations + Send back
 	if len(n.GetPacketsByType(transport.EncryptedChunk)) >= len(n.Server.Participants) && len(n.Server.Participants) > 0 {
 		fmt.Println("Server calculations on", len(n.Server.Participants), "polynomes")
@@ -136,6 +143,7 @@ func (n *Node) OnReceive(pkt transport.Packet) error {
 
 		// Server calculations -> averages the weights
 		adds := n.Server.AddNew(n.Server.Responses[0], n.Server.Responses[1])
+		fmt.Println(adds)
 		n.Server.Result = n.Server.MultByConstNew(adds, 0.5)
 
 		// Results
@@ -151,9 +159,10 @@ func (n *Node) OnReceive(pkt transport.Packet) error {
 			}
 
 			go n.Socket.Send(p.Source, pktResult)
-
 		}
-		// Empty used packets ?
+
+		// Empty used packets
+		n.Packets = n.Packets[0:]
 	}
 
 	if pkt.Type == transport.Join {

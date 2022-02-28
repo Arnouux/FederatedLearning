@@ -15,7 +15,6 @@ In any case, you will need to instanciate nodes with `node.CreateAndStart()` and
 - [ ] make sure ACKs correspond to current msg / better udp
 - [x] nodes can join server / nb of participants 
 - [ ] gradients calculations
-- [x] aggregation
-    - [ ] better
+- [x] aggregation + local weights update
 - [ ] byzantine environnement resistance
 - [x] change BFV to CKKS for float operations

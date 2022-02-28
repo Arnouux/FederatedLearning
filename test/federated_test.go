@@ -352,9 +352,34 @@ func Test_LocalGradientDescent(t *testing.T) {
 	// TODO : See Protocol 2 LGD
 }
 
+// After receiving aggregated weights,
+// decrypt and apply to the node's nn.
 func Test_UpdateLocalModel(t *testing.T) {
-	// After receiving aggregated weights,
-	// decrypt and apply to the node's nn.
+	n1 := node.Create()
+	n1.Start()
+	n2 := node.Create()
+	n2.Start()
+	server := node.Create()
+	server.Start()
+	n1.Join(server.Socket.GetAddress())
+	n2.Join(server.Socket.GetAddress())
+	time.Sleep(time.Millisecond * 20)
+
+	n1.NeuralNetwork = neural.CreateNetwork(4, 1, 1, 5, 0.01)
+	n2.NeuralNetwork = neural.CreateNetwork(4, 1, 1, 5, 0.01)
+	n1.InitiateWeights()
+	n2.InitiateWeights()
+
+	// Save current weights
+	w1 := n1.GetWeights()
+	n1.SendWeights(server.Socket.GetAddress())
+	n2.SendWeights(server.Socket.GetAddress())
+
+	time.Sleep(time.Millisecond * 200)
+	require.Equal(t, 2, len(server.GetPacketsByType(transport.EncryptedChunk)))
+	require.Equal(t, 1, len(n1.GetPacketsByType(transport.Result)))
+
+	require.Equal(t, w1, n1.GetWeights())
 }
 
 func Test_CombineGradients(t *testing.T) {
