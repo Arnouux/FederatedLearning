@@ -39,6 +39,8 @@ func (s *Socket) Send(dest string, pkt Packet) error {
 	switch pkt.Type {
 	case Ack:
 		sendingPkt.Message = pkt.Message
+	case Params:
+		sendingPkt.Params = pkt.Params
 	case EncryptedChunk, Result:
 		i := 50000
 		for i < len(pkt.Message) {
@@ -170,6 +172,7 @@ func (s *Socket) Recv() (Packet, error) {
 		Destination: pkt.Destination,
 		Message:     messageFull,
 		Type:        pkt.Type,
+		Params:      pkt.Params,
 	}
 	return pktFinal, nil
 }

@@ -19,4 +19,6 @@ In any case, you will need to instanciate nodes with `node.CreateAndStart()` and
 - [ ] byzantine environnement resistance
 - [x] change BFV to CKKS for float operations
 - [ ] generalize to n participants
+- [x] server setup nn
+- [ ] let joiners propose input size, hyperparams,.. / not default
 - [ ] refactor

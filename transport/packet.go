@@ -6,6 +6,18 @@ type Packet struct {
 	Message     string
 	Type        string
 	ID          string
+	Params      Parameters
+}
+
+type Parameters struct {
+	InputDimensions    int
+	OutputDimensions   int
+	NbLayers           int
+	NbNeurons          int
+	LearningRate       float64
+	NbIterations       int
+	ActivationFunction string
+	BatchSize          int
 }
 
 const (
@@ -13,6 +25,7 @@ const (
 	Ack            = "acknowlegdement"
 	Result         = "result"
 	Join           = "join"
+	Params         = "params"
 )
 
 func (p *Packet) String() string {

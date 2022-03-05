@@ -66,6 +66,7 @@ func NewServer() Server {
 	}
 }
 
+// Not used
 func (client *Client) Encrypt(coeffs []float64) (string, error) {
 	plaintext := ckks.NewPlaintext(client.Params, client.Params.MaxLevel(), client.Params.DefaultScale())
 
@@ -76,6 +77,7 @@ func (client *Client) Encrypt(coeffs []float64) (string, error) {
 	return output, nil
 }
 
+// Not used
 func (client *Client) Decrypt(input string) ([]float64, error) {
 	cipher := ckks.NewCiphertext(client.Params, 1, 1, 0.01)
 	UnmarshalFromBase64(cipher, input)

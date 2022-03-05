@@ -106,18 +106,21 @@ func (nn *NeuralNetwork) SetWeights(ws []float64) {
 	for input := 0; input < nn.InputDimensions; input++ {
 		for i := range nn.Weights[0][input] {
 			nn.Weights[0][input][i] = ws[index]
+			index++
 		}
 	}
 	for layer := 1; layer < nn.NbLayers; layer++ {
 		for neuron := 0; neuron < nn.NbNeurons; neuron++ {
 			for i := range nn.Weights[layer][neuron] {
 				nn.Weights[layer][neuron][i] = ws[index]
+				index++
 			}
 		}
 	}
 	for input := 0; input < nn.OutputDimensions; input++ {
 		for i := range nn.Weights[nn.NbLayers+1][input] {
 			nn.Weights[nn.NbLayers+1][input][i] = ws[index]
+			index++
 		}
 	}
 }
