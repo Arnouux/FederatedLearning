@@ -13,13 +13,10 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// Test Send and Recv functions, test should terminate
+// Test Send and Recv functions
 func Test_SendRecv(t *testing.T) {
 	n1 := node.Create()
-	//n1.Print()
-
 	n2 := node.Create()
-	//n2.Print()
 
 	pkt := transport.Packet{
 		Destination: n2.Socket.GetAddress(),
@@ -30,7 +27,6 @@ func Test_SendRecv(t *testing.T) {
 	recvd := make(chan int)
 	go func() {
 		_, _ = n2.Socket.Recv()
-		//fmt.Println(string(pkt.Message))
 		recvd <- 1
 	}()
 	go n1.Socket.Send(n2.Socket.GetAddress(), pkt)
@@ -379,12 +375,6 @@ func Test_UpdateLocalModel(t *testing.T) {
 	require.Equal(t, 2, len(server.GetPacketsByType(transport.EncryptedChunk)))
 	require.Equal(t, 1, len(n1.GetPacketsByType(transport.Result)))
 
-	require.Equal(t, w1, n1.GetWeights())
-}
-
-func Test_CombineGradients(t *testing.T) {
-	// sum all received gradients
-
-	// Update model weights by using
-	// the averaged aggragated gradients
+	// Weights have changed
+	require.NotEqual(t, w1, n1.GetWeights())
 }
