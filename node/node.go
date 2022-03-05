@@ -126,12 +126,11 @@ func (n *Node) StartLearning() {
 // Handler of packet
 func (n *Node) OnReceive(pkt transport.Packet) error {
 
-	// TODO switch
-	if pkt.Type == "" {
+	switch pkt.Type {
+	case "":
 		// For testing purpose
 		n.Packets = append(n.Packets, pkt)
-	}
-	if pkt.Type == transport.Join {
+	case transport.Join:
 		// if first join
 		if w := n.GetWeights(); len(w) == 0 {
 			n.NeuralNetwork = neural.CreateNetwork(4, 1, 1, 5, 0.01)
@@ -160,12 +159,7 @@ func (n *Node) OnReceive(pkt transport.Packet) error {
 			Type:        transport.Params,
 		}
 		n.Socket.Send(pkt.Source, pktParams)
-
-		// To send weights
-		//go n.SendWeights(pkt.Source, true)
-
-	}
-	if pkt.Type == transport.Params {
+	case transport.Params:
 		n.Packets = append(n.Packets, pkt)
 		n.NeuralNetwork = neural.CreateNetwork(
 			pkt.Params.InputDimensions,
@@ -175,18 +169,16 @@ func (n *Node) OnReceive(pkt transport.Packet) error {
 			pkt.Params.LearningRate,
 		)
 		n.InitiateWeights()
-	}
-	if pkt.Type == transport.EncryptedChunk {
+	case transport.EncryptedChunk:
 		n.Packets = append(n.Packets, pkt)
-
-	}
-	if pkt.Type == transport.Result {
+	case transport.Result:
 		n.Packets = append(n.Packets, pkt)
 		cipher := ckks.NewCiphertext(n.Params, 1, 1, 0.01)
 		encryption.UnmarshalFromBase64(cipher, pkt.Message)
 		coeffs := n.DecodeCoeffs(n.DecryptNew(cipher))
 		n.SetWeights(coeffs)
 	}
+
 	// TODO generalize to n participants
 	// If 2 packets -> Calculations + Send back
 	if len(n.GetPacketsByType(transport.EncryptedChunk)) >= len(n.Server.Participants) && len(n.Server.Participants) > 0 {
