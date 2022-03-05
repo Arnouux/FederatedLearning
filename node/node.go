@@ -91,39 +91,94 @@ func (n *Node) Join(server string) error {
 }
 
 // Weights are sent with a separator between them, in a string
-func (n *Node) SendWeights(server string) error {
-	weights := n.NeuralNetwork.GetWeights()
-	encrypted, err := n.Client.Encrypt(weights)
-	if err != nil {
-		return err
-	}
+func (n *Node) SendWeights(server string, asResult bool) error {
+	weights := n.GetWeights()
+	plaintext := ckks.NewPlaintext(n.Params, n.Params.MaxLevel(), n.Params.DefaultScale())
+	n.Encoder.EncodeCoeffs(weights, plaintext)
 
+	ciphertext := n.Encryptor.EncryptNew(plaintext)
+	cipher := encryption.MarshalToBase64String(ciphertext)
+
+	var t string
+	if asResult {
+		t = transport.Result
+	} else {
+		t = transport.EncryptedChunk
+	}
 	pkt := transport.Packet{
 		Source:      n.Socket.GetAddress(),
 		Destination: server,
-		Message:     encrypted,
-		Type:        transport.EncryptedChunk,
+		Message:     cipher,
+		Type:        t,
 	}
 
 	// Send to server
-	err = n.Socket.Send(server, pkt)
+	err := n.Socket.Send(server, pkt)
 	return err
+}
+
+func (n *Node) StartLearning() {
+	for _, p := range n.Participants {
+		n.SendWeights(p, true)
+	}
 }
 
 // Handler of packet
 func (n *Node) OnReceive(pkt transport.Packet) error {
 
 	// TODO switch
-	// For testing purpose
 	if pkt.Type == "" {
+		// For testing purpose
 		n.Packets = append(n.Packets, pkt)
 	}
 	if pkt.Type == transport.Join {
+		// if first join
+		if w := n.GetWeights(); len(w) == 0 {
+			n.NeuralNetwork = neural.CreateNetwork(4, 1, 1, 5, 0.01)
+			n.InitiateWeights()
+		}
+
+		// New participant joined
 		n.Server.Participants = append(n.Server.Participants, pkt.Source)
 		n.Packets = append(n.Packets, pkt)
+
+		// To send hyperparams
+		params := transport.Parameters{
+			InputDimensions:    4,
+			OutputDimensions:   1,
+			NbLayers:           1,
+			NbNeurons:          5,
+			LearningRate:       0.01,
+			NbIterations:       5,
+			ActivationFunction: neural.SigmoidFunc,
+			BatchSize:          64,
+		}
+		pktParams := transport.Packet{
+			Source:      n.Socket.GetAddress(),
+			Destination: pkt.Source,
+			Params:      params,
+			Type:        transport.Params,
+		}
+		n.Socket.Send(pkt.Source, pktParams)
+
+		// To send weights
+		//go n.SendWeights(pkt.Source, true)
+
+	}
+	if pkt.Type == transport.Params {
+		n.Packets = append(n.Packets, pkt)
+		n.NeuralNetwork = neural.CreateNetwork(
+			pkt.Params.InputDimensions,
+			pkt.Params.OutputDimensions,
+			pkt.Params.NbLayers,
+			pkt.Params.NbNeurons,
+			pkt.Params.LearningRate,
+		)
+		n.InitiateWeights()
 	}
 	if pkt.Type == transport.EncryptedChunk {
 		n.Packets = append(n.Packets, pkt)
+
 	}
 	if pkt.Type == transport.Result {
 		n.Packets = append(n.Packets, pkt)
@@ -132,8 +187,7 @@ func (n *Node) OnReceive(pkt transport.Packet) error {
 		coeffs := n.DecodeCoeffs(n.DecryptNew(cipher))
 		n.SetWeights(coeffs)
 	}
-
-	// TODO geenralize to n participants
+	// TODO generalize to n participants
 	// If 2 packets -> Calculations + Send back
 	if len(n.GetPacketsByType(transport.EncryptedChunk)) >= len(n.Server.Participants) && len(n.Server.Participants) > 0 {
 		fmt.Println("Server calculations on", len(n.Server.Participants), "polynomes")

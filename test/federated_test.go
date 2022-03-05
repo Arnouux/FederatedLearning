@@ -52,13 +52,10 @@ func Test_HE(t *testing.T) {
 	server.Responses = append(server.Responses, cipherText2)
 
 	// Plaintext creation and encoding process
-	p2 := ckks.DefaultParams[1]
-	params2, _ := ckks.NewParametersFromLiteral(p2)
-	plaintext := ckks.NewPlaintext(params2, params2.MaxLevel(), params2.DefaultScale())
+	plaintext := ckks.NewPlaintext(client.Params, client.Params.MaxLevel(), client.Params.DefaultScale())
 	client.Encoder.EncodeCoeffs([]float64{1, 2, 3}, plaintext)
 	// Encryption process
-	var ciphertext *ckks.Ciphertext
-	ciphertext = client.Encryptor.EncryptNew(plaintext)
+	ciphertext := client.Encryptor.EncryptNew(plaintext)
 	// Calcs
 	adds := server.Evaluator.AddNew(ciphertext, ciphertext)
 	mean := server.Evaluator.MultByConstNew(adds, 0.5)
@@ -318,7 +315,7 @@ func Test_Weights(t *testing.T) {
 	n1.NeuralNetwork = neural.CreateNetwork(4, 1, 1, 5, 0.01)
 	n1.NeuralNetwork.InitiateWeights()
 
-	err := n1.SendWeights(n2.Socket.GetAddress())
+	err := n1.SendWeights(n2.Socket.GetAddress(), false)
 	require.NoError(t, err)
 
 	time.Sleep(time.Millisecond * 200)
@@ -327,25 +324,73 @@ func Test_Weights(t *testing.T) {
 
 }
 
+func Test_Send2Times(t *testing.T) {
+	n1 := node.Create()
+	go n1.Start()
+	n2 := node.Create()
+	go n2.Start()
+	err := n1.SendWeights(n2.Socket.GetAddress(), false)
+	require.NoError(t, err)
+	err = n1.SendWeights(n2.Socket.GetAddress(), false)
+	require.NoError(t, err)
+
+	encrypted, _ := n1.Client.Encrypt([]float64{3, 4})
+	pkt := transport.Packet{
+		Source:      n1.Socket.GetAddress(),
+		Destination: n2.Socket.GetAddress(),
+		Message:     encrypted,
+		Type:        transport.EncryptedChunk,
+	}
+	n1.Socket.Send(n2.Socket.GetAddress(), pkt)
+	n1.Socket.Send(n2.Socket.GetAddress(), pkt)
+
+	time.Sleep(time.Millisecond * 200)
+	require.Equal(t, 4, len(n2.Packets))
+}
+
 // Prepare number of layers, number of neurons,
 // learning rate, number of global iterations,
 // activation functions, local batch size.
 // Root (server) encrypts initial weigths.
 func Test_ServerPreparesParameters(t *testing.T) {
 	server := node.Create()
-	server.Start()
+	go server.Start()
 
-	node1, err1 := node.CreateAndStart()
+	node1 := node.Create()
+	go node1.Start()
 	node1.Join(server.Socket.GetAddress())
-	node2, err2 := node.CreateAndStart()
+	node2 := node.Create()
+	go node2.Start()
 	node2.Join(server.Socket.GetAddress())
-	require.NoError(t, err1, err2)
 
-	// TODO : See Protocol 1 Collective Training
+	// See Protocol 1 Collective Training
+
+	// For now, server directly sends hyperparams
+	pktParams := transport.Packet{
+		Source:      server.Socket.GetAddress(),
+		Destination: node2.Socket.GetAddress(),
+		Params: transport.Parameters{
+			InputDimensions:    4,
+			OutputDimensions:   1,
+			NbLayers:           1,
+			NbNeurons:          5,
+			LearningRate:       0.01,
+			NbIterations:       5,
+			ActivationFunction: neural.SigmoidFunc,
+			BatchSize:          64,
+		},
+		Type: transport.Params,
+	}
+	time.Sleep(time.Millisecond * 200)
+
+	require.Equal(t, 1, len(node1.Packets))
+	require.Equal(t, pktParams, node2.Packets[0])
+
+	require.Equal(t, node1.Packets[0].Params, node2.Packets[0].Params)
 }
 
 func Test_LocalGradientDescent(t *testing.T) {
-	// TODO : See Protocol 2 LGD
+	// TODO
 }
 
 // After receiving aggregated weights,
@@ -359,7 +404,7 @@ func Test_UpdateLocalModel(t *testing.T) {
 	server.Start()
 	n1.Join(server.Socket.GetAddress())
 	n2.Join(server.Socket.GetAddress())
-	time.Sleep(time.Millisecond * 20)
+	time.Sleep(time.Millisecond * 200)
 
 	n1.NeuralNetwork = neural.CreateNetwork(4, 1, 1, 5, 0.01)
 	n2.NeuralNetwork = neural.CreateNetwork(4, 1, 1, 5, 0.01)
@@ -368,13 +413,34 @@ func Test_UpdateLocalModel(t *testing.T) {
 
 	// Save current weights
 	w1 := n1.GetWeights()
-	n1.SendWeights(server.Socket.GetAddress())
-	n2.SendWeights(server.Socket.GetAddress())
-
+	n1.SendWeights(server.Socket.GetAddress(), false)
+	n2.SendWeights(server.Socket.GetAddress(), false)
 	time.Sleep(time.Millisecond * 200)
 	require.Equal(t, 2, len(server.GetPacketsByType(transport.EncryptedChunk)))
 	require.Equal(t, 1, len(n1.GetPacketsByType(transport.Result)))
 
 	// Weights have changed
 	require.NotEqual(t, w1, n1.GetWeights())
+}
+
+func Test_StartLearning(t *testing.T) {
+	n1 := node.Create()
+	n1.Start()
+	n2 := node.Create()
+	n2.Start()
+	server := node.Create()
+	server.Start()
+	n1.Join(server.Socket.GetAddress())
+	n2.Join(server.Socket.GetAddress())
+	time.Sleep(time.Millisecond * 100)
+
+	require.NotEqual(t, n1.GetWeights(), n2.GetWeights())
+	server.StartLearning()
+
+	time.Sleep(time.Millisecond * 100)
+
+	// 2 = params + weights
+	require.Equal(t, 2, len(n1.Packets))
+	// precision is up to ~10^7
+	require.Equal(t, int(n1.GetWeights()[0]*1000), int(n2.GetWeights()[0]*1000))
 }
