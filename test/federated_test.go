@@ -99,7 +99,7 @@ func Test_StartNode(t *testing.T) {
 
 	node2.Socket.Send(node1.Socket.GetAddress(), pkt)
 
-	time.Sleep(time.Millisecond * 200)
+	time.Sleep(time.Millisecond * 100)
 
 	require.Equal(t, pkt, node1.Packets[0])
 }
@@ -122,7 +122,7 @@ func Test_SendHE(t *testing.T) {
 	err := node2.Socket.Send(node1.Socket.GetAddress(), pkt)
 	require.NoError(t, err)
 
-	time.Sleep(time.Millisecond * 200)
+	time.Sleep(time.Millisecond * 100)
 	require.Equal(t, 1, len(node1.Packets))
 	require.Equal(t, len(encrypted), len(node1.Packets[0].Message))
 	require.Equal(t, pkt.Destination, node1.Packets[0].Destination)
@@ -164,7 +164,7 @@ func Test_ServerCalculations(t *testing.T) {
 	err = node2.Socket.Send(server.Socket.GetAddress(), pkt)
 	require.NoError(t, err)
 
-	time.Sleep(time.Millisecond * 200)
+	time.Sleep(time.Millisecond * 100)
 	require.Equal(t, 2, len(server.Packets))
 
 	// Server reads encryptions
@@ -229,7 +229,7 @@ func Test_ServerSendResults(t *testing.T) {
 	err = node2.Socket.Send(server.Socket.GetAddress(), pkt2)
 	require.NoError(t, err)
 
-	time.Sleep(time.Millisecond * 200)
+	time.Sleep(time.Millisecond * 100)
 	require.Equal(t, 2, len(server.Packets))
 
 	// Nodes 1 & 2 should receive Result packet
@@ -267,7 +267,7 @@ func Test_ServerWaitsForNodes(t *testing.T) {
 	node1 := node.Create()
 	node1.Join(server.Socket.GetAddress())
 
-	time.Sleep(time.Millisecond * 200)
+	time.Sleep(time.Millisecond * 100)
 
 	require.Equal(t, 1, len(server.Packets))
 	require.Equal(t, 1, len(server.Server.Participants))
@@ -318,7 +318,7 @@ func Test_Weights(t *testing.T) {
 	err := n1.SendWeights(n2.Socket.GetAddress(), false)
 	require.NoError(t, err)
 
-	time.Sleep(time.Millisecond * 200)
+	time.Sleep(time.Millisecond * 100)
 
 	require.Equal(t, 1, len(n2.GetPacketsByType(transport.EncryptedChunk)))
 
@@ -344,7 +344,7 @@ func Test_Send2Times(t *testing.T) {
 	n1.Socket.Send(n2.Socket.GetAddress(), pkt)
 	n1.Socket.Send(n2.Socket.GetAddress(), pkt)
 
-	time.Sleep(time.Millisecond * 200)
+	time.Sleep(time.Millisecond * 100)
 	require.Equal(t, 4, len(n2.Packets))
 }
 
@@ -381,7 +381,7 @@ func Test_ServerPreparesParameters(t *testing.T) {
 		},
 		Type: transport.Params,
 	}
-	time.Sleep(time.Millisecond * 200)
+	time.Sleep(time.Millisecond * 100)
 
 	require.Equal(t, 1, len(node1.Packets))
 	require.Equal(t, pktParams, node2.Packets[0])
@@ -404,7 +404,7 @@ func Test_UpdateLocalModel(t *testing.T) {
 	server.Start()
 	n1.Join(server.Socket.GetAddress())
 	n2.Join(server.Socket.GetAddress())
-	time.Sleep(time.Millisecond * 200)
+	time.Sleep(time.Millisecond * 100)
 
 	n1.NeuralNetwork = neural.CreateNetwork(4, 1, 1, 5, 0.01)
 	n2.NeuralNetwork = neural.CreateNetwork(4, 1, 1, 5, 0.01)
@@ -415,7 +415,7 @@ func Test_UpdateLocalModel(t *testing.T) {
 	w1 := n1.GetWeights()
 	n1.SendWeights(server.Socket.GetAddress(), false)
 	n2.SendWeights(server.Socket.GetAddress(), false)
-	time.Sleep(time.Millisecond * 200)
+	time.Sleep(time.Millisecond * 100)
 	require.Equal(t, 2, len(server.GetPacketsByType(transport.EncryptedChunk)))
 	require.Equal(t, 1, len(n1.GetPacketsByType(transport.Result)))
 

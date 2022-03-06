@@ -6,7 +6,32 @@ The library aims at creating a network of nodes sharing neural network's paramet
 
 ## 2. How to use ?
 You can get inspiration by reading the tests file `test/federated_test.go`.
-In any case, you will need to instanciate nodes with `node.CreateAndStart()` and make them connect and send data to a server node.
+In any case, you will need to instanciate nodes and make them connect and send data to a server node.
+In your project root directory:
+`go get github.com/Arnouux/federated-learning-lib`. After that, the library is importable and usable such as:
+```
+package main
+
+import (
+	fl "github.com/Arnouux/federated-learning-lib"
+)
+
+func main() {
+	node := fl.Create()
+	node.Start()
+
+	server := fl.Create()
+	server.Start()
+
+	// ** //
+
+	node.Join(server.Socket.GetAddress())
+
+	// ** //
+
+	server.StartLearning()
+}
+```
 
 ## 3. Todo list
 - [x] send HE messages
@@ -22,3 +47,5 @@ In any case, you will need to instanciate nodes with `node.CreateAndStart()` and
 - [x] server setup nn
 - [ ] let joiners propose input size, hyperparams,.. / not default
 - [ ] refactor
+- [x] make project importable as lib
+  - [ ] make this current repo usable
