@@ -52,13 +52,13 @@ func (n *Node) Print() {
 }
 
 func (n *Node) Start() error {
-	defer fmt.Println(n.Socket.GetAddress(), "Started without error")
+	defer fmt.Println(n.Socket.GetAddress(), "started")
 
 	// TODO : start on create ?
 
 	// Main goroutine of node -> waits for packets
 	go func() {
-		defer fmt.Println(n.Socket.GetAddress(), "Stopped")
+		defer fmt.Println(n.Socket.GetAddress(), "stopped")
 		for {
 			pkt, err := n.Socket.Recv()
 			if err != nil {
